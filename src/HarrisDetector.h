@@ -8,39 +8,27 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
-struct pointData
-{
-	float energy;
-	cv::Point pt;
-	pointData() {
-		energy = 0;
-		pt = cv::Point(0, 0);
-	};
-
-	pointData(float _energy, cv::Point _pt) {
-		energy = _energy;
-		pt = _pt;
-	};
-};
+#include "Utils.h"
 
 class HarrisDetector
 {
 public:
 	HarrisDetector(cv::Mat image);
-	HarrisDetector(cv::Mat image, float k, int filterRange);
+	HarrisDetector(cv::Mat image, float k, int filterSize);
 	void findHarrisResponse();
 
-	std::vector<pointData> getFeaturePoints(float percentage, int localMaximumSize);
-	void showFeaturePoints(std::vector<pointData> pts);
+	std::vector<cv::Point> getFeaturePoints(float percentage, int localMaximumSize);
+	void showFeaturePoints(std::vector<cv::Point> &pts, int radius);
 	
 private:
-	std::vector<cv::Mat> computeDerivative(cv::Mat grayImage);
-	void computeResponse(std::vector<cv::Mat> derivative);
-	void applyGuassToDerivative(std::vector<cv::Mat>& derivative);
+	Derivative computeDerivative();
+	void computeResponse(Derivative &derivative);
+	void applyGaussToDerivative(Derivative &derivative);
 	
 	int filterSize;
 	float k;
 	
 	cv::Mat image;
+	cv::Mat grayImage;
 	cv::Mat harrisResponse;
 };

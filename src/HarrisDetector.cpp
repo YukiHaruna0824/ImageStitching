@@ -3,7 +3,7 @@
 HarrisDetector::HarrisDetector(cv::Mat image)
 {
 	this->image = image.clone();
-	this->k = 0.05;
+	this->k = 0.04;
 	this->filterSize = 3;
 }
 
@@ -16,22 +16,25 @@ HarrisDetector::HarrisDetector(cv::Mat image, float k, int filterSize)
 
 void HarrisDetector::findHarrisResponse()
 {
-	cv::Mat grayImage = cv::Mat(this->image.rows, this->image.cols, CV_32F);
-	for (int c = 0; c < grayImage.cols; c++) {
-		for (int r = 0; r < grayImage.rows; r++) {
-			grayImage.at<float>(r, c) =
+	this->grayImage = cv::Mat(this->image.rows, this->image.cols, CV_32F);
+	for (int c = 0; c < this->grayImage.cols; c++) {
+		for (int r = 0; r < this->grayImage.rows; r++) {
+			this->grayImage.at<float>(r, c) =
 				0.114 * this->image.at<cv::Vec3b>(r, c)[0] +
 				0.587 * this->image.at<cv::Vec3b>(r, c)[1] +
 				0.299 * this->image.at<cv::Vec3b>(r, c)[2];
 		}
 	}
-	
-	std::vector<cv::Mat> derivative = this->computeDerivative(grayImage);
-	this->applyGuassToDerivative(derivative);
+
+	cv::GaussianBlur(this->grayImage, this->grayImage, cv::Size(this->filterSize, this->filterSize), 0.707, 0.707);
+
+	//get Ix^2, Iy^2, Ixy
+	Derivative derivative = this->computeDerivative();
+	this->applyGaussToDerivative(derivative);
 	computeResponse(derivative);
 }
 
-std::vector<pointData> HarrisDetector::getFeaturePoints(float percentage, int localMaximumSize)
+std::vector<cv::Point> HarrisDetector::getFeaturePoints(float percentage, int localMaximumSize)
 {
 	//find threshold
 	std::vector<pointData> points;
@@ -45,8 +48,8 @@ std::vector<pointData> HarrisDetector::getFeaturePoints(float percentage, int lo
 			points.push_back(ptData);
 		}
 	}
-	std::sort(points.begin(), points.end(), [](const pointData& pt1, const pointData& pt2) {
-		return pt1.energy > pt2.energy;
+	std::sort(points.begin(), points.end(), [](const pointData &lhs, const pointData &rhs) {
+		return lhs.energy > rhs.energy;
 	});
 	
 	//std::cout << points.size() << std::endl;
@@ -59,7 +62,7 @@ std::vector<pointData> HarrisDetector::getFeaturePoints(float percentage, int lo
 	}
 
 	//Find local maximum
-	std::vector<pointData> result;
+	std::vector<cv::Point> result;
 	for (int i = 0; i < this->harrisResponse.rows; i += localMaximumSize) {
 		for (int j = 0; j < this->harrisResponse.cols; j += localMaximumSize) {
 			float maxE = -FLT_MAX;
@@ -88,11 +91,8 @@ std::vector<pointData> HarrisDetector::getFeaturePoints(float percentage, int lo
 			}
 
 			if (flag) {
-				pointData ptdata;
-				ptdata.energy = this->harrisResponse.at<float>(maxPoint.x, maxPoint.y);
 				//convert to original coordinate system
-				ptdata.pt = cv::Point(maxPoint.x + 1, maxPoint.y + 1);
-				result.push_back(ptdata);
+				result.push_back(cv::Point(maxPoint.x + 1, maxPoint.y + 1));
 			}
 		}
 	}
@@ -101,35 +101,33 @@ std::vector<pointData> HarrisDetector::getFeaturePoints(float percentage, int lo
 	return result;
 }
 
-void HarrisDetector::showFeaturePoints(std::vector<pointData> pts)
+void HarrisDetector::showFeaturePoints(std::vector<cv::Point> &pts, int radius)
 {
-	cv::Mat showImg = this->image.clone();
-	int radius = 3;
-	
+	cv::Mat showImg = this->image.clone();	
 	int newX, newY;
-	for (pointData &point : pts){
+	for (cv::Point &point : pts){
 		for (int r = -radius; r < radius; r++) {
-			newX = std::max(0, std::min(point.pt.x + r, showImg.rows));
-			newY = std::max(0, std::min(point.pt.y + radius, showImg.cols));
+			newX = std::max(0, std::min(point.x + r, showImg.rows - 1));
+			newY = std::max(0, std::min(point.y + radius, showImg.cols - 1));
 			showImg.at<cv::Vec3b>(newX, newY) = cv::Vec3b(0, 0, 255);
 		}
 		for (int r = -radius; r < radius; r++) {
-			newX = std::max(0, std::min(point.pt.x + r, showImg.rows));
-			newY = std::max(0, std::min(point.pt.y - radius, showImg.cols));
+			newX = std::max(0, std::min(point.x + r, showImg.rows - 1));
+			newY = std::max(0, std::min(point.y - radius, showImg.cols - 1));
 			showImg.at<cv::Vec3b>(newX, newY) = cv::Vec3b(0, 0, 255);
 		}
 		for (int r = -radius; r < radius; r++){
-			newX = std::max(0, std::min(point.pt.x - radius, showImg.rows));
-			newY = std::max(0, std::min(point.pt.y + r, showImg.cols));
+			newX = std::max(0, std::min(point.x - radius, showImg.rows - 1));
+			newY = std::max(0, std::min(point.y + r, showImg.cols - 1));
 			showImg.at<cv::Vec3b>(newX, newY) = cv::Vec3b(0, 0, 255);
 		}
 		for (int r = -radius; r < radius; r++) {
-			newX = std::max(0, std::min(point.pt.x + radius, showImg.rows));
-			newY = std::max(0, std::min(point.pt.y + r, showImg.cols));
+			newX = std::max(0, std::min(point.x + radius, showImg.rows - 1));
+			newY = std::max(0, std::min(point.y + r, showImg.cols - 1));
 			showImg.at<cv::Vec3b>(newX, newY) = cv::Vec3b(0, 0, 255);
 		}
 
-		//showImg.at<cv::Vec3b>(point.pt.x, point.pt.y) = cv::Vec3b(0, 0, 255);
+		//showImg.at<cv::Vec3b>(point.x, point.y) = cv::Vec3b(0, 0, 255);
 	}
 	
 	cv::namedWindow("ImgViewer", 1);
@@ -137,19 +135,19 @@ void HarrisDetector::showFeaturePoints(std::vector<pointData> pts)
 	cv::waitKey(0);
 }
 
-std::vector<cv::Mat> HarrisDetector::computeDerivative(cv::Mat grayImage)
+Derivative HarrisDetector::computeDerivative()
 {
-	int height = grayImage.rows;
-	int width = grayImage.cols;
+	int height = this->grayImage.rows;
+	int width = this->grayImage.cols;
 	
 	cv::Mat sobel_h = cv::Mat(height - 2, width, CV_32F);
 
 	float a1, a2, a3;
 	for (int i = 1; i < height - 1; i++) {
 		for (int j = 0; j < width; j++) {
-			a1 = grayImage.at<float>(i - 1, j);
-			a2 = grayImage.at<float>(i, j);
-			a3 = grayImage.at<float>(i + 1, j);
+			a1 = this->grayImage.at<float>(i - 1, j);
+			a2 = this->grayImage.at<float>(i, j);
+			a3 = this->grayImage.at<float>(i + 1, j);
 			sobel_h.at<float>(i - 1, j) = a1 + 2 * a2 + a3;
 		}
 	}
@@ -157,53 +155,54 @@ std::vector<cv::Mat> HarrisDetector::computeDerivative(cv::Mat grayImage)
 	cv::Mat sobel_w = cv::Mat(height , width - 2, CV_32F);
 	for (int i = 0; i < height; i++) {
 		for (int j = 1; j < width - 1; j++) {
-			a1 = grayImage.at<float>(i, j - 1);
-			a2 = grayImage.at<float>(i, j);
-			a3 = grayImage.at<float>(i, j + 1);
+			a1 = this->grayImage.at<float>(i, j - 1);
+			a2 = this->grayImage.at<float>(i, j);
+			a3 = this->grayImage.at<float>(i, j + 1);
 			sobel_w.at<float>(i, j - 1) = a1 + 2 * a2 + a3;
 		}
 	}
 
 	cv::Mat Ix = cv::Mat(height - 2, width - 2, CV_32F);
 	cv::Mat Iy = cv::Mat(height - 2, width - 2, CV_32F);
-	//cv::Mat Ixy = cv::Mat(height - 2, width - 2, CV_32F);
+	cv::Mat Ixy = cv::Mat(height - 2, width - 2, CV_32F);
 
 	for (int i = 0; i < height - 2; i++) {
 		for (int j = 0; j < width - 2; j++) {
 			Ix.at<float>(i, j) = -sobel_w.at<float>(i, j) + sobel_w.at<float>(i + 2, j);
 			Iy.at<float>(i, j) = sobel_h.at<float>(i, j) - sobel_h.at<float>(i, j + 2);
-			//Ixy.at<float>(i, j) = Ix.at<float>(i, j) * Iy.at<float>(i, j);
+			Ixy.at<float>(i, j) = Ix.at<float>(i, j) * Iy.at<float>(i, j);
+
+			Ix.at<float>(i, j) = Ix.at<float>(i, j) * Ix.at<float>(i, j);
+			Iy.at<float>(i, j) = Iy.at<float>(i, j) * Iy.at<float>(i, j);
 		}
 	}
-	
-	std::vector<cv::Mat> result = {Ix, Iy};
-	return result;
+	return Derivative(Ix, Iy, Ixy);
 }
 
-void HarrisDetector::computeResponse(std::vector<cv::Mat> derivative)
+void HarrisDetector::computeResponse(Derivative &derivative)
 {
-	this->harrisResponse = cv::Mat(derivative[1].rows, derivative[0].cols, CV_32F);
+	this->harrisResponse = cv::Mat(derivative.Iy.rows, derivative.Ix.cols, CV_32F);
 	float a00, a01, a10, a11, det, trace;
 	for (int i = 0; i < this->harrisResponse.rows; i++) {
 		for (int j = 0; j < this->harrisResponse.cols; j++) {
-			a00 = derivative[0].at<float>(i, j) * derivative[0].at<float>(i, j);
-			a01 = derivative[0].at<float>(i, j) * derivative[1].at<float>(i, j);
-			a10 = derivative[0].at<float>(i, j) * derivative[1].at<float>(i, j);
-			a11 = derivative[1].at<float>(i, j) * derivative[1].at<float>(i, j);
+			a00 = derivative.Ix.at<float>(i, j);
+			a01 = derivative.Ixy.at<float>(i, j);
+			a10 = derivative.Ixy.at<float>(i, j);
+			a11 = derivative.Iy.at<float>(i, j);
 			det = a00 * a11 - a01 * a10;
 			trace = a00 + a11;
-
+			
 			this->harrisResponse.at<float>(i, j) = fabs(det - this->k * trace * trace);
 		}
 	}
 }
 
-void HarrisDetector::applyGuassToDerivative(std::vector<cv::Mat>& derivative)
+void HarrisDetector::applyGaussToDerivative(Derivative &derivative)
 {
 	if (this->filterSize == 0)
 		return;
 
-	for (int i = 0; i < derivative.size(); i++)
-		cv::GaussianBlur(derivative[i], derivative[i], cv::Size(this->filterSize, this->filterSize), 0.707);
-
+	cv::GaussianBlur(derivative.Ix, derivative.Ix, cv::Size(this->filterSize, this->filterSize), 0.707, 0.707);
+	cv::GaussianBlur(derivative.Iy, derivative.Iy, cv::Size(this->filterSize, this->filterSize), 0.707, 0.707);
+	cv::GaussianBlur(derivative.Ix, derivative.Ixy, cv::Size(this->filterSize, this->filterSize), 0.707, 0.707);
 }

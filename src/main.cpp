@@ -4,6 +4,7 @@
 
 #include "ImageUtils.h"
 #include "HarrisDetector.h"
+#include "MSOP.h"
 
 #include<opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
@@ -21,12 +22,16 @@ int main(int argc, char* argv[])
 	std::string filename = "test.jpg";
 	cv::Mat image = cv::imread(filename, cv::IMREAD_COLOR);
 	
-	HarrisDetector detector(image);
+	/*HarrisDetector detector(image);
 	detector.findHarrisResponse();
-	
-	std::vector<pointData> pts = detector.getFeaturePoints(0.5f, 50);
-	detector.showFeaturePoints(pts);
+	std::vector<cv::Point> pts = detector.getFeaturePoints(0.5f, 50);
+	detector.showFeaturePoints(pts, 3);*/
 
+	MSOP msop(image);
+	msop.findHarrisResponse();
+	std::vector<std::vector<cv::Point>> pts1 = msop.getFeaturePoints(100);
+	msop.showFeaturePoints(pts1, 3);
+	
 
 	return 0;
 }
