@@ -20,6 +20,8 @@ public:
 	std::vector<cv::Point> getFeaturePoints(float percentage, int localMaximumSize);
 	void showFeaturePoints(std::vector<cv::Point> &pts, int radius);
 	
+	
+
 private:
 	Derivative computeDerivative();
 	void computeResponse(Derivative &derivative);

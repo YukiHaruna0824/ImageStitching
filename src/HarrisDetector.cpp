@@ -193,6 +193,7 @@ void HarrisDetector::computeResponse(Derivative &derivative)
 			trace = a00 + a11;
 			
 			this->harrisResponse.at<float>(i, j) = fabs(det - this->k * trace * trace);
+			//std::cout << this->harrisResponse.at<float>(i,j) << std::endl;
 		}
 	}
 }

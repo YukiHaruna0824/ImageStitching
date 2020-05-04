@@ -32,9 +32,9 @@ void MSOP::findHarrisResponse()
 	computeResponse(derivatives);
 }
 
-std::vector<std::vector<cv::Point>> MSOP::getFeaturePoints(int selectNum)
+void MSOP::getFeaturePoints(int selectNum)
 {
-	std::vector<std::vector<cv::Point>> pyramidPoints;
+	//std::vector<std::vector<cv::Point>> pyramidPoints;
 	for (int k = 0; k < this->harrisResponses.size(); k++) {
 		int height = this->harrisResponses[k].rows;
 		int width = this->harrisResponses[k].cols;
@@ -90,19 +90,156 @@ std::vector<std::vector<cv::Point>> MSOP::getFeaturePoints(int selectNum)
 			//convert to original coordinate system
 			result.push_back(cv::Point(points[i].pt.x + 1, points[i].pt.y + 1));
 		}
-		pyramidPoints.push_back(result);
+		this->featurePoints.push_back(result);
 	}
-	return pyramidPoints;
 }
 
-void MSOP::showFeaturePoints(std::vector<std::vector<cv::Point>> &pts, int radius)
+void MSOP::setFeatureDescription()
+{
+	cv::Mat grayImage, filterImage, localWindow;
+	for (int i = 0; i < this->pyramidGrayImages.size(); i++) {
+		grayImage = this->pyramidGrayImages[i];
+		std::vector<FeaturePoint> fp;
+		for (int j = 0; j < this->featurePoints[i].size(); j++) {
+			//get 11 * 11 local window of feature points
+			localWindow = cv::Mat(11, 11, CV_32F);
+			bool flag = true;
+			for (int m = -5; m < 6; m++) {
+				int newX = this->featurePoints[i][j].x + m;
+				if (newX < 0 || newX >= grayImage.rows || !flag) {
+					flag = false;
+					break;
+				}
+				for (int n = -5; n < 6; n++) {
+					int newY = this->featurePoints[i][j].y + n;
+					if (newY < 0 || newY >= grayImage.cols) {
+						flag = false;
+						break;
+					}
+					localWindow.at<float>(m + 5, n + 5) = grayImage.at<float>(newX, newY);
+				}
+			}
+
+			// ignore when the window is out of image boundary  
+			if (!flag)
+				continue;
+
+			//apply gaussian filter
+			cv::GaussianBlur(localWindow, filterImage, cv::Size(11, 11), 4.5f, 4.5f);
+
+			//decide major orientaition
+			cv::Mat votes = cv::Mat::zeros(11, 11, CV_32F);
+			std::vector<float> thetas;
+
+			//calculate votes and theta
+			float voteBox[36] = { 0 };
+			float dX, dY, length, rad, theta;
+			for (int y = 1; y < 10; y++) {
+				for (int x = 1; x < 10; x++) {
+					dX = filterImage.at<float>(y, x + 1) - filterImage.at<float>(y, x - 1);
+					dY = filterImage.at<float>(y + 1, x) - filterImage.at<float>(y - 1, x);
+					rad = atan2(dY, dX);
+					theta = rad * 180 / CV_PI >= 0 ? rad * 180 / CV_PI : rad * 180 / CV_PI + 360;
+					thetas.push_back(theta);
+
+					length = sqrt(dX * dX + dY * dY);
+					votes.at<float>(y, x) = length;
+
+					//std::cout << theta << " ";
+					//std::cout << length << std::endl;
+				}
+			}
+
+			//apply gaussian filter to votes
+			cv::GaussianBlur(votes, votes, cv::Size(11, 11), 1.5f, 1.5f);
+			int count = 0;
+			for (int y = 1; y < 10; y++) {
+				for (int x = 1; x < 10; x++) {
+					voteBox[(int)(thetas[count] / 10)] += votes.at<float>(y, x);
+					count++;
+				}
+			}
+
+			//get major orientaion
+			int maxIndex = 0;
+			int maxVote = voteBox[0];
+			for (int k = 1; k < 36; k++) {
+				if (voteBox[k] > maxVote) {
+					maxIndex = k;
+					maxVote = voteBox[k];
+				}
+			}
+
+			//rotate 41 * 41 window by major theta
+			int major_theta = maxIndex * 10;
+			cv::Mat majorWindow = cv::Mat(41, 41, CV_32F);
+			flag = true;
+			for (int r = -20; r < 21; r++) {
+				for (int c = -20; c < 21; c++) {
+					rad = major_theta / 180 * CV_PI;
+					//implement subpixel
+					int newC = cos(rad) * c - sin(rad) * r + this->featurePoints[i][j].y;
+					int newR = sin(rad) * c + cos(rad) * r + this->featurePoints[i][j].x;
+					if (newC < 0 || newC >= grayImage.cols || newR < 0 || newR >= grayImage.rows) {
+						flag = false;
+						break;
+					}
+					majorWindow.at<float>(r + 20, c + 20) = grayImage.at<float>(newR, newC);
+				}
+			}
+
+			// ignore when the window is out of image boundary
+			if (!flag)
+				continue;
+
+			//resize to 8 * 8 window
+			cv::resize(majorWindow, majorWindow, cv::Size(8, 8));
+			cv::Mat mean, stddev;
+			cv::meanStdDev(majorWindow, mean, stddev);
+
+			//normalize
+			for (int r = 0; r < majorWindow.rows; r++) {
+				for (int c = 0; c < majorWindow.cols; c++) {
+					majorWindow.at<float>(r, c) = (majorWindow.at<float>(r, c) - mean.at<double>(0, 0)) / stddev.at<double>(0, 0);
+					//std::cout << majorWindow.at<float>(r, c) << " ";
+				}
+				//std::cout << std::endl;
+			}
+			fp.push_back(FeaturePoint(this->featurePoints[i][j], major_theta, majorWindow.clone()));
+		}
+		this->featureDescriptions.push_back(fp);
+		fp.clear();
+	}
+}
+
+std::vector<std::vector<FeaturePoint>>& MSOP::getFeatureDescription()
+{
+	return this->featureDescriptions;
+}
+
+int MSOP::getPyramidDepth()
+{
+	return this->pyramidDepth;
+}
+
+cv::Mat& MSOP::getImage() 
+{
+	return this->image;
+}
+
+std::vector<cv::Mat>& MSOP::getPyramidImages()
+{
+	return this->pyramidImages;
+}
+
+void MSOP::showFeaturePoints(int radius)
 {
 	int newX, newY;
 	cv::namedWindow("ImgViewer", 1);
 	for (int i = 0; i < this->pyramidImages.size(); i++) {
 		cv::Mat showImg = this->pyramidImages[i].clone();
 		
-		for (cv::Point &point : pts[i]) {
+		for (cv::Point &point : this->featurePoints[i]) {
 			for (int r = -radius; r < radius; r++) {
 				newX = std::max(0, std::min(point.x + r, showImg.rows - 1));
 				newY = std::max(0, std::min(point.y + radius, showImg.cols - 1));
@@ -219,7 +356,10 @@ void MSOP::computeResponse(std::vector<Derivative> &derivative)
 				a11 = derivative[k].Iy.at<float>(i, j);
 				det = a00 * a11 - a01 * a10;
 				trace = a00 + a11;
-				harrisResponse.at<float>(i, j) = det / (trace + 0.000001);
+				if (trace == 0)
+					harrisResponse.at<float>(i, j) = 0;
+				else
+					harrisResponse.at<float>(i, j) = det / trace;
 			}
 		}
 		this->harrisResponses.push_back(harrisResponse);

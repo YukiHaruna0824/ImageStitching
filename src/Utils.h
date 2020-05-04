@@ -43,3 +43,25 @@ struct Derivative
 		this->Ixy = _Ixy;
 	};
 };
+
+struct FeaturePoint
+{
+	cv::Point pt;
+	//bool isValid;
+	float theta;
+	cv::Mat featureVector;
+
+	FeaturePoint() {
+		this->pt = cv::Point(0, 0);
+		//this->isValid = false;
+		this->theta = 0.0f;
+		this->featureVector = cv::Mat(8, 8, CV_32F);
+	};
+
+	FeaturePoint(cv::Point _pt, float _theta, cv::Mat _featureVector) {
+		this->pt = _pt;
+		//this->isValid = true;
+		this->theta = _theta;
+		this->featureVector = _featureVector.clone();
+	};
+};

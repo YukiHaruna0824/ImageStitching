@@ -18,8 +18,15 @@ public:
 
 	void findHarrisResponse();
 
-	std::vector<std::vector<cv::Point>> getFeaturePoints(int selectNum);
-	void showFeaturePoints(std::vector<std::vector<cv::Point>> &pts, int radius);
+	void getFeaturePoints(int selectNum);
+	void showFeaturePoints(int radius);
+
+	void setFeatureDescription();
+	std::vector<std::vector<FeaturePoint>>& getFeatureDescription();
+
+	int getPyramidDepth();
+	cv::Mat& getImage();
+	std::vector<cv::Mat>& getPyramidImages();
 
 private:
 	void constructPyramid();
@@ -34,6 +41,11 @@ private:
 	std::vector<cv::Mat> pyramidImages;
 	std::vector<cv::Mat> pyramidGrayImages;
 	std::vector<cv::Mat> harrisResponses;
+
+	std::vector<std::vector<cv::Point>> featurePoints;
+
+	std::vector<std::vector<FeaturePoint>> featureDescriptions;
+
 
 	float sigmaP, sigmaI, sigmaD;
 	int filterSize;
