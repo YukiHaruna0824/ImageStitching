@@ -14,6 +14,7 @@ class MSOP
 {
 public:
 	MSOP(cv::Mat image);
+	MSOP(cv::Mat image, int pyramidDepth);
 	MSOP(cv::Mat image, float sigmaP, float sigmaI, float sigmaD, int filterSize, int pyramidDepth);
 
 	void findHarrisResponse();

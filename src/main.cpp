@@ -34,11 +34,14 @@ int main(int argc, char* argv[])
 		std::vector<cv::Point> pts = detector.getFeaturePoints(0.5f, 50);
 		detector.showFeaturePoints(pts, 3);*/
 
-		MSOP msop(image);
+		MSOP msop(image, 1);
 		msop.findHarrisResponse();
+		std::cout << "Find HarrisResponse!" << std::endl;
 		msop.getFeaturePoints(100);
+		std::cout << "Find Feature Points" << std::endl;
 		//msop.showFeaturePoints(3);
 		msop.setFeatureDescription();
+		std::cout << "Find Description end!" << std::endl;
 		msops.push_back(msop);
 	}
 	

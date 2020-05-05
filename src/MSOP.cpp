@@ -11,6 +11,16 @@ MSOP::MSOP(cv::Mat image)
 	this->pyramidDepth = 3;
 }
 
+MSOP::MSOP(cv::Mat image, int pyramidDepth)
+{
+	this->image = image;
+	this->pyramidDepth = pyramidDepth;
+	this->sigmaP = 1.0;
+	this->sigmaI = 1.5;
+	this->sigmaD = 1.0;
+	this->filterSize = 3;
+}
+
 MSOP::MSOP(cv::Mat image, float sigmaP, float sigmaI, float sigmaD, int filterSize, int pyramidDepth)
 {
 	this->image = image;
@@ -39,8 +49,11 @@ void MSOP::getFeaturePoints(int selectNum)
 		int height = this->harrisResponses[k].rows;
 		int width = this->harrisResponses[k].cols;
 
-		//find local maxima 3*3 window larger than 10
 		std::vector<pointData> points;
+		
+		//find local maxima 3*3 window larger than 10
+
+		#pragma omp parallel for private(i, j)
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
 				float e = this->harrisResponses[k].at<float>(i, j);;
@@ -64,6 +77,29 @@ void MSOP::getFeaturePoints(int selectNum)
 					points.push_back(pointData(e, cv::Point(i, j)));
 			}
 		}
+
+		/*for (int i = 0; i < height; i += 3) {
+			for (int j = 0; j < width; j += 3) {
+				float maxE = -FLT_MAX;
+				cv::Point maxPoint = cv::Point(0, 0);
+				for (int m = 0; m < 3; m++) {
+					if (i + m >= height || i + m < 0)
+						continue;
+					for (int n = 0; n < 3; n++) {
+						if (j + n >= width || j + n < 0)
+							continue;
+
+						float e = this->harrisResponses[k].at<float>(i + m, j + n);
+						if (e > maxE) {
+							maxE = e;
+							maxPoint = cv::Point(i + m, j + n);
+						}
+					}
+				}
+				if (maxE > 10)
+					points.push_back(pointData(maxE, cv::Point(maxPoint.x, maxPoint.y)));
+			}
+		}*/
 
 		//adaptive non maximal suppression
 		for (int i = 0; i < points.size(); i++) {
