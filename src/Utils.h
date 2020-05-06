@@ -58,6 +58,13 @@ struct FeaturePoint
 		this->featureVector = cv::Mat(8, 8, CV_32F);
 	};
 
+	FeaturePoint(cv::Point _pt, cv::Mat _featureVector) {
+		this->pt = _pt;
+		//this->isValid = true;
+		this->theta = 0;
+		this->featureVector = _featureVector.clone();
+	};
+
 	FeaturePoint(cv::Point _pt, float _theta, cv::Mat _featureVector) {
 		this->pt = _pt;
 		//this->isValid = true;

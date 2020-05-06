@@ -23,8 +23,9 @@ public:
 	void showFeaturePoints(int radius);
 
 	void setFeatureDescription();
-	std::vector<std::vector<FeaturePoint>>& getFeatureDescription();
 
+	//getter method
+	std::vector<std::vector<FeaturePoint>>& getFeatureDescription();
 	int getPyramidDepth();
 	cv::Mat& getImage();
 	std::vector<cv::Mat>& getPyramidImages();

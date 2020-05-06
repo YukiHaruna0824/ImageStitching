@@ -34,7 +34,7 @@ void HarrisDetector::findHarrisResponse()
 	computeResponse(derivative);
 }
 
-std::vector<cv::Point> HarrisDetector::getFeaturePoints(float percentage, int localMaximumSize)
+void HarrisDetector::getFeaturePoints(float percentage, int localMaximumSize)
 {
 	//find threshold
 	std::vector<pointData> points;
@@ -62,7 +62,6 @@ std::vector<cv::Point> HarrisDetector::getFeaturePoints(float percentage, int lo
 	}
 
 	//Find local maximum
-	std::vector<cv::Point> result;
 	for (int i = 0; i < this->harrisResponse.rows; i += localMaximumSize) {
 		for (int j = 0; j < this->harrisResponse.cols; j += localMaximumSize) {
 			float maxE = -FLT_MAX;
@@ -92,20 +91,19 @@ std::vector<cv::Point> HarrisDetector::getFeaturePoints(float percentage, int lo
 
 			if (flag) {
 				//convert to original coordinate system
-				result.push_back(cv::Point(maxPoint.x + 1, maxPoint.y + 1));
+				this->featurePoints.push_back(cv::Point(maxPoint.x + 1, maxPoint.y + 1));
 			}
 		}
 	}
 	
-	//std::cout << result.size() << std::endl;
-	return result;
+	//std::cout << this->featurePoints.size() << std::endl;
 }
 
-void HarrisDetector::showFeaturePoints(std::vector<cv::Point> &pts, int radius)
+void HarrisDetector::showFeaturePoints(int radius)
 {
 	cv::Mat showImg = this->image.clone();	
 	int newX, newY;
-	for (cv::Point &point : pts){
+	for (cv::Point &point : this->featurePoints){
 		for (int r = -radius; r < radius; r++) {
 			newX = std::max(0, std::min(point.x + r, showImg.rows - 1));
 			newY = std::max(0, std::min(point.y + radius, showImg.cols - 1));
@@ -133,6 +131,29 @@ void HarrisDetector::showFeaturePoints(std::vector<cv::Point> &pts, int radius)
 	cv::namedWindow("ImgViewer", 1);
 	cv::imshow("ImgViewer", showImg);
 	cv::waitKey(0);
+}
+
+void HarrisDetector::setFeatureDescription()
+{
+	cv::Mat feature = cv::Mat(3, 3, CV_32F);
+	for (int k = 0; k < this->featurePoints.size(); k++) {
+		for (int i = -1; i < 2; i++) {
+			for (int j = -1; j < 2; j++) {
+				feature.at<float>(i + 1, j + 1) = this->grayImage.at<float>(this->featurePoints[k].x + i, this->featurePoints[k].y + j);
+			}
+		}
+		this->featureDescriptions.push_back(FeaturePoint(this->featurePoints[k], feature.clone()));
+	}
+}
+
+std::vector<FeaturePoint>& HarrisDetector::getFeatureDescription()
+{
+	return this->featureDescriptions;
+}
+
+cv::Mat& HarrisDetector::getImage()
+{
+	return this->image;
 }
 
 Derivative HarrisDetector::computeDerivative()

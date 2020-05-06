@@ -17,10 +17,14 @@ public:
 	HarrisDetector(cv::Mat image, float k, int filterSize);
 	void findHarrisResponse();
 
-	std::vector<cv::Point> getFeaturePoints(float percentage, int localMaximumSize);
-	void showFeaturePoints(std::vector<cv::Point> &pts, int radius);
-	
-	
+	void getFeaturePoints(float percentage, int localMaximumSize);
+	void showFeaturePoints(int radius);
+
+	void setFeatureDescription();
+
+	//getter
+	std::vector<FeaturePoint>& getFeatureDescription();
+	cv::Mat& getImage();
 
 private:
 	Derivative computeDerivative();
@@ -30,6 +34,9 @@ private:
 	int filterSize;
 	float k;
 	
+	std::vector<cv::Point> featurePoints;
+	std::vector<FeaturePoint> featureDescriptions;
+
 	cv::Mat image;
 	cv::Mat grayImage;
 	cv::Mat harrisResponse;
