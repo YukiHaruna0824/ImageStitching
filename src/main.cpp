@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
 
 	
 	for (int i = 0; i < (int)msops.size() - 1; i++) {
-		std::vector<std::vector<cv::Vec2i>> matches = imgUtils.getMatchFeaturePoints(msops[i], msops[i + 1], 0.5f);
+		std::vector<std::vector<cv::Vec2i>> matches = imgUtils.getMatchFeaturePoints(msops[i], msops[i + 1], 0.7f);
 		for (int m = 0; m < matches.size(); m++) {
 			printf("Pyramid %d\n", m);
 			printf("Image %d and Image %d match counts: %d\n", i, i + 1, matches[m].size());

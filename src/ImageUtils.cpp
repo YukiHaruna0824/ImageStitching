@@ -147,6 +147,35 @@ std::vector<std::vector<cv::Vec2i>> ImageUtils::getMatchFeaturePoints(MSOP &lhs,
 				match.push_back(cv::Vec2i(i, lowIndex));
 			}
 		}
+		//printf("Before remove point count: %d\n", match.size());
+
+		//check many to one status
+		int *rhsMatch = new int[rhsFeaturePoints.size()];
+		for (int i = 0; i < rhsFeaturePoints.size(); i++) {
+			rhsMatch[i] = -1;
+		}
+		for (int i = 0; i < match.size(); i++) {
+			if (rhsMatch[match[i][1]] != -1) {
+				float d = computeFeaturePointDistance(lhsFeaturePoints[rhsMatch[match[i][1]]].featureVector,
+					rhsFeaturePoints[match[i][1]].featureVector);
+				float d1 = computeFeaturePointDistance(lhsFeaturePoints[match[i][0]].featureVector, 
+					rhsFeaturePoints[match[i][1]].featureVector);
+				if (d1 < d) {
+					rhsMatch[match[i][1]] = match[i][0];
+				}
+			}
+			else {
+				rhsMatch[match[i][1]] = match[i][0];
+			}
+		}
+		match.clear();
+		for (int i = 0; i < rhsFeaturePoints.size(); i++) {
+			if (rhsMatch[i] != -1)
+				match.push_back(cv::Vec2i(rhsMatch[i], i));
+		}
+		delete[] rhsMatch;
+		
+		//printf("After remove point count: %d\n", match.size());
 		matches.push_back(match);
 		match.clear();
 	}
